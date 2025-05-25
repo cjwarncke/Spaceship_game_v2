@@ -68,11 +68,12 @@ function startInputLoop() {
 function renderGame() {
     g.clearRect(0,0,canvas.clientWidth,canvas.clientHeight)
 
-    // Draw all players
+    // Draw all players and lasers
     for (let playerID in gameState.players) {
         const player = gameState.players[playerID];
         console.log(`${playerID}: rotation=${player.rotation}`);
         drawPlayer(player, playerID === myPlayerID);
+        drawLaser(player);
     }
 }
 
@@ -88,6 +89,17 @@ function drawPlayer(player, isMe) {
         50 //spaceship height
     );
     g.restore();
+}
+
+function drawLaser(player) {
+    if (player.laser.active) {
+        g.strokeStyle = 'red';
+        g.lineWidth = 2;
+        g.beginPath()
+        g.moveTo(player.laser.from.x, player.laser.from.y);
+        g.lineTo(player.laser.to.x, player.laser.to.y);
+        g.stroke();
+    }
 }
 
 // Keyboard input handling

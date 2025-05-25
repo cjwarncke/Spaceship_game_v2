@@ -60,8 +60,21 @@ async def player_connection(websocket):
         'y':y, 
         'vx':0, # starting velocity
         'vy':0, # starting velocity
-        'rotation':0, #starting position
-        'keys': {   # ← add this
+        'rotation':0, #starting rotation
+        'laser': {
+            'active': False,
+            'cooldown': False,
+            'duration': 3,
+            'from': {
+                'x': 0,
+                'y': 0
+            },
+            'to': {
+                'x': 0,
+                'y': 0
+            },
+        },
+        'keys': {
             'rotateLeft': False,
             'rotateRight': False,
             'thrust': False,
@@ -103,6 +116,15 @@ async def broadcast_game_state():
             break
             #disconnect player
 
+def get_laser_endpoint(from_x, from_y, angle_rad):
+    to_x = from_x
+    to_y = from_y
+    #Keep extending line until it crosses boundary
+    while to_x >= 0 and to_x <= width and to_y >= 0 and to_y <= height:
+        to_x += math.cos(angle_rad) * 5
+        to_y += math.sin(angle_rad) * 5
+    return (to_x, to_y)
+
 async def game_loop():
     while True:
         for player in game_state['players'].values():
@@ -116,6 +138,10 @@ async def game_loop():
                 angle_rad = math.radians(player['rotation'] - 90)
                 player['vx'] += math.cos(angle_rad) * thrust_power
                 player['vy'] += math.sin(angle_rad) * thrust_power
+            if keys.get('fireLaser') and not player['laser']['cooldown']:
+                    player['laser']['active'] = True
+                    player['laser']['duration'] = 3
+                    player['laser']['cooldown'] = 10
 
             # Update position
             player['x'] += player['vx']
@@ -139,6 +165,29 @@ async def game_loop():
             elif player['y'] > height:
                 player['y'] = height
                 player['vy'] = 0
+
+            if player['laser']['active']:
+                # Update laser position
+                from_x = player['x']
+                from_y = player['y']
+                angle_rad = math.radians(player['rotation'] - 90)
+                (to_x, to_y) = get_laser_endpoint(from_x, from_y, angle_rad)
+                player['laser']['from']['x'] = from_x
+                player['laser']['from']['y'] = from_y
+                player['laser']['to']['x'] = to_x
+                player['laser']['to']['y'] = to_y
+
+                # Update laser duration
+                player['laser']['duration'] -= 1
+                if player['laser']['duration'] <= 0:
+                    player['laser']['active'] = False
+
+            # Update laser cooldown timer
+            if player['laser']['cooldown']:
+                player['laser']['cooldown'] -= 1
+                if player['laser']['cooldown'] <= 0:
+                    player['laser']['cooldown'] = False
+                
 
         await broadcast_game_state()
         await asyncio.sleep(1 / 30)  # 30 FPS
