@@ -21,6 +21,10 @@ let otherSpaceshipImage = null;
 var canvas = document.getElementById('canvas');
 var g = canvas.getContext('2d'); 
 
+// Chat variables
+let chatSocket = null;
+let chatMessages = []; // store chat history
+
 function loadImage(src) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -33,7 +37,7 @@ function connect() {
     websocket = new WebSocket('ws://localhost:8765'); //address of server
 
     websocket.onopen = function() {
-        console.log('Connected to server');
+        console.log('Connected to game server');
     }
 
     websocket.onmessage = function(event) {
@@ -174,16 +178,89 @@ document.addEventListener('keyup', function(event) {
     }
 });
 
+function connectChat() {
+    chatSocket = new WebSocket('ws://localhost:8768');
+
+    chatSocket.onopen = () => {
+        console.log('Connected to chat server');
+    };
+
+    chatSocket.onmessage = (event) => {
+        console.log('chat received')
+        const message = JSON.parse(event.data);
+
+        switch(message.type) {
+            case 'chat_history':
+                chatMessages = message.messages;
+                renderChat();
+                break;
+
+            case 'chat_message':
+                chatMessages.push({
+                    player_id: message.player_id,
+                    message: message.message,
+                    timestamp: message.timestamp
+                });
+                renderChat();
+                break;
+        }
+    };
+
+    chatSocket.onclose = () => {
+        console.log('Chat server connection closed');
+    };
+}
+
+function sendChatMessage(text) {
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        console.log('Sending chat')
+        chatSocket.send(JSON.stringify({
+            type: 'chat_message',
+            player_id: myPlayerID,
+            message: text
+        }));
+    }
+}
+
+function renderChat() {
+    const chatbox = document.getElementById('chatbox');
+    chatbox.innerHTML = chatMessages.map(msg => {
+        const time = new Date(msg.timestamp * 1000).toLocaleTimeString();
+        return `<div><strong>Player ${msg.player_id}:</strong> ${msg.message} <em>(${time})</em></div>`;
+    }).join('');
+}
+
 
 // This is the entry point.  It runs when the webpage finishes loading
 window.addEventListener('load', async function() {
-    fetchScores(); // Show scores before connecting to game server
+    //fetchScores(); // Show scores before connecting to game server
 
-    // Force it to load images before connecting
+    // Force it to load images before connecting to game server
     [mySpaceshipImage, otherSpaceshipImage] = await Promise.all([
         loadImage('Images/my_spaceship.png'),
         loadImage('Images/other_spaceship.png')
     ]);
-    connect();
+    connect(); //Connect to game server
     this.setInterval(fetchScores, 1000); //Update scores once per second
+
+    //Connect chat buttons
+    const chatInput = document.getElementById('chat-input');
+    const sendButton = document.getElementById('chat-send');
+
+    sendButton.onclick = () => {
+        if (chatInput.value.trim()) {
+            sendChatMessage(chatInput.value.trim());
+            chatInput.value = '';
+        }
+    };
+
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendButton.click();
+        }
+    });
+
+    connectChat(); //Connect to chat server
+
+
 });
