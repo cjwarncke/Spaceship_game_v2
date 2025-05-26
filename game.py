@@ -1,5 +1,6 @@
 import websockets #used for communication with browser
 import asyncio
+import aiohttp #used for communication with score microservice
 import json
 import math
 #adding async before a function definition adds the function to the event loop
@@ -66,6 +67,7 @@ async def player_connection(websocket):
             'active': False,
             'cooldown': False,
             'duration': 3,
+            'hitTarget': False,
             'from': {
                 'x': 0,
                 'y': 0
@@ -154,11 +156,20 @@ def laser_hit(laser_from, laser_to, ship_x, ship_y):
     else:
         return False
     
+async def send_score_update(player_id):
+    async with aiohttp.ClientSession() as session:
+        try:
+            await session.post(
+                'http://localhost:8767/score/hit',
+                json={'player_id': player_id}
+            )
+        except:
+            print('Score update failed')
 
 
 async def game_loop():
     while True:
-        for player in game_state['players'].values():
+        for player_id, player in game_state['players'].items():
             keys = player['keys']
 
             if keys.get('rotateLeft'):
@@ -171,6 +182,7 @@ async def game_loop():
                 player['vy'] += math.sin(angle_rad) * thrust_power
             if keys.get('fireLaser') and not player['laser']['cooldown']:
                     player['laser']['active'] = True
+                    player['laser']['hitTarget'] = False
                     player['laser']['duration'] = 3
                     player['laser']['cooldown'] = 10
 
@@ -214,12 +226,15 @@ async def game_loop():
                     player['laser']['active'] = False
 
                 # Check for laser hit
-                for other_player in game_state['players'].values():
-                    if player == other_player:
-                        continue # Don't check if player hits their own laser
-                    else:
-                        if laser_hit(player['laser']['from'], player['laser']['to'], other_player['x'], other_player['y']):
-                            print('Hit detected')
+                if not player['laser']['hitTarget']: # A laser can only hit a target once
+                    for other_player in game_state['players'].values():
+                        if player == other_player:
+                            continue # Don't check if player hits their own laser
+                        else:
+                            if laser_hit(player['laser']['from'], player['laser']['to'], other_player['x'], other_player['y']):
+                                print('Hit detected')
+                                player['laser']['hitTarget'] = True
+                                asyncio.create_task(send_score_update(player_id))
 
             # Update laser cooldown timer
             if player['laser']['cooldown']:

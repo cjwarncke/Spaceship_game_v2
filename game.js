@@ -84,7 +84,6 @@ function renderGame() {
 }
 
 function drawPlayer(player, isMe) {
-    console.log(isMe)
     g.save();
     g.translate(player.x, player.y); //player position
     g.rotate(player.rotation * Math.PI/180); //convert to radians
@@ -108,6 +107,32 @@ function drawLaser(player) {
         g.lineTo(player.laser.to.x, player.laser.to.y);
         g.stroke();
     }
+}
+
+async function fetchScores() {
+    try {
+        const response = await fetch('http://localhost:8767/score');
+        if (!response.ok) throw new Error('Failed to fetch scores');
+        const scores = await response.json();
+        updateScoreboard(scores);
+    }
+    catch (e) {
+        console.error('Error fetching scores: ', e);
+    }
+}
+
+function updateScoreboard(scores) {
+    const scoreboard = document.getElementById('scoreboard');
+    let html = ''
+
+    let playerScoresHtml = [];
+    for (let playerID in scores) {
+        // Wrap each player's score in a span with a class
+        playerScoresHtml.push(`<span class="player-score">Player ${playerID} Score: ${scores[playerID]}</span>`);
+    }
+    // Join them without additional separators, as flexbox will handle spacing
+    html += playerScoresHtml.join('');
+    scoreboard.innerHTML = html;
 }
 
 // Keyboard input handling
@@ -152,10 +177,13 @@ document.addEventListener('keyup', function(event) {
 
 // This is the entry point.  It runs when the webpage finishes loading
 window.addEventListener('load', async function() {
+    fetchScores(); // Show scores before connecting to game server
+
     // Force it to load images before connecting
     [mySpaceshipImage, otherSpaceshipImage] = await Promise.all([
         loadImage('Images/my_spaceship.png'),
         loadImage('Images/other_spaceship.png')
     ]);
     connect();
+    this.setInterval(fetchScores, 1000); //Update scores once per second
 });
