@@ -13,14 +13,21 @@ let keys = {
     fireLaser: false
 }
 
-// Spaceship
-image = new Image();
-image.src = 'Images/spaceship.png'
+// Spaceship Images
+let mySpaceshipImage = null;
+let otherSpaceshipImage = null;
 
 // Canvas Setup
 var canvas = document.getElementById('canvas');
 var g = canvas.getContext('2d'); 
 
+function loadImage(src) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = src;
+    });
+}
 
 function connect() {
     websocket = new WebSocket('ws://localhost:8765'); //address of server
@@ -71,23 +78,24 @@ function renderGame() {
     // Draw all players and lasers
     for (let playerID in gameState.players) {
         const player = gameState.players[playerID];
-        console.log(`${playerID}: rotation=${player.rotation}`);
-        drawPlayer(player, playerID === myPlayerID);
+        drawPlayer(player, playerID == myPlayerID);
         drawLaser(player);
     }
 }
 
 function drawPlayer(player, isMe) {
+    console.log(isMe)
     g.save();
     g.translate(player.x, player.y); //player position
     g.rotate(player.rotation * Math.PI/180); //convert to radians
+    const img = isMe ? mySpaceshipImage : otherSpaceshipImage;
     g.drawImage(
-        image,
-        -25, //negative half width
-        -25, //negative half height
-        50, //spaceship width
-        50 //spaceship height
-    );
+        img,
+        -ship_size/2, //-25, //negative half width
+        -ship_size/2, //-25, //negative half height
+        ship_size, //50, //spaceship width
+        ship_size //50 //spaceship height
+        );
     g.restore();
 }
 
@@ -143,6 +151,11 @@ document.addEventListener('keyup', function(event) {
 
 
 // This is the entry point.  It runs when the webpage finishes loading
-window.addEventListener('load', function() {
+window.addEventListener('load', async function() {
+    // Force it to load images before connecting
+    [mySpaceshipImage, otherSpaceshipImage] = await Promise.all([
+        loadImage('Images/my_spaceship.png'),
+        loadImage('Images/other_spaceship.png')
+    ]);
     connect();
 });

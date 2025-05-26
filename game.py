@@ -8,6 +8,7 @@ import math
 width = 800
 height = 500
 thrust_power = 0.3
+ship_size = 50
 
 spawn_points = [
     (100, 250),
@@ -46,7 +47,7 @@ async def player_connection(websocket):
     setup_message = {
         'type': 'setup',
         'player_id': player_id,
-        'ship_size': 50,
+        'ship_size': ship_size,
         'players' : 1, # temporary. will need to send message with all player ids
     }
     
@@ -125,6 +126,36 @@ def get_laser_endpoint(from_x, from_y, angle_rad):
         to_y += math.sin(angle_rad) * 5
     return (to_x, to_y)
 
+def laser_hit(laser_from, laser_to, ship_x, ship_y):
+    # Use algorithm for checking if a line intersects a circle
+    dx = laser_to['x'] - laser_from['x']
+    dy = laser_to['y'] - laser_from['y']
+    fx = laser_from['x'] - ship_x
+    fy = laser_from['y'] - ship_y
+
+    a = dx**2 + dy**2
+    b = 2 * (fx * dx + fy * dy)
+    c = fx**2 + fy**2 - ship_size**2
+
+    d = b**2 - 4 * a * c
+
+    # No intersection
+    if d < 0:
+        return False
+    
+    d = math.sqrt(d)
+    t1 = (-b - d) / (2*a)
+    t2 = (-b + d) / (2*a)
+
+    # Intersection
+    if (t1 >= 0 and t1 <= 1) or (t2 >= 0 and t2 <= 1):
+        return True
+    # No intersection
+    else:
+        return False
+    
+
+
 async def game_loop():
     while True:
         for player in game_state['players'].values():
@@ -181,6 +212,14 @@ async def game_loop():
                 player['laser']['duration'] -= 1
                 if player['laser']['duration'] <= 0:
                     player['laser']['active'] = False
+
+                # Check for laser hit
+                for other_player in game_state['players'].values():
+                    if player == other_player:
+                        continue # Don't check if player hits their own laser
+                    else:
+                        if laser_hit(player['laser']['from'], player['laser']['to'], other_player['x'], other_player['y']):
+                            print('Hit detected')
 
             # Update laser cooldown timer
             if player['laser']['cooldown']:
