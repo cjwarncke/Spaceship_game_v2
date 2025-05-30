@@ -67,7 +67,7 @@ class LoginHandler(BaseHTTPRequestHandler):
 def run(server_class=HTTPServer, handler_class=LoginHandler, port=8766):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    print(f'Login server running on port {port}...')
+    print(f'Login server running')
     httpd.serve_forever()
 
 if __name__ == '__main__':

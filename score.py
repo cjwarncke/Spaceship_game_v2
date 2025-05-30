@@ -13,7 +13,6 @@ class ScoreHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_OPTIONS(self):
-        # Handle CORS preflight requests
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -65,7 +64,7 @@ class ScoreHandler(BaseHTTPRequestHandler):
 def run():
     server_address = ('localhost', 8767)
     httpd = HTTPServer(server_address, ScoreHandler)
-    print("Scorekeeper running")
+    print("Score server running")
     httpd.serve_forever()
 
 if __name__ == '__main__':

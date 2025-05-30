@@ -249,7 +249,7 @@ async def game_loop():
 
 async def main():
     server = await websockets.serve(player_connection, 'localhost', 8765) #starts the server. Player connection is the function that is run whenever a new connection is received
-    print('Server is running')
+    print('Game server is running')
     await asyncio.gather(
         server.wait_closed(),
         game_loop()

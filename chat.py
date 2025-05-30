@@ -37,7 +37,7 @@ async def handler(websocket):
 
 async def main():
     async with websockets.serve(handler, "localhost", 8768):
-        print("Chat server started on ws://localhost:8768")
+        print("Chat server running")
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
