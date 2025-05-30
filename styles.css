@@ -1,0 +1,48 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    height: 100vh;
+    background-color: #000;
+    color: white;
+    flex-direction: column;
+    text-align: center;
+    justify-content: center;
+}
+
+.content-container {
+    text-align: center; /* Left-aligns text inside the container */
+    padding: 20px;
+    max-width: 600px; /* Optional: limits width of the content */
+    width: 100%; /* Ensures it uses full width inside the body */
+}
+
+h1 {
+  color: white; /* Title text color */
+  font-size: 60px; /* Title font size */
+  margin-top: 20px; /* Add some space at the top */
+  margin-bottom: 50px; /* Add space between the title and the next section */
+  font-family: 'Lucida Console', Monaco, monospace;
+}
+
+
+h2 {
+    font-size: 50px;
+  }
+
+h3 {
+  font-size: 30px;
+}
+
+  ol {
+    list-style-type: decimal;
+    padding-left: 20px;
+    text-align: left;
+    display: inline-block;
+    font-size: 32px;
+  }
+
+  button {
+    font-size: 20px;
+    padding: 10px 20px;
+    cursor: pointer;
+  }
