@@ -195,25 +195,25 @@ async def game_loop():
             player['vy'] *= 0.99
 
             # Keep within bounds
-            if player['x'] < 0:
-                player['x'] = 0
+            if player['x'] - (ship_size/2) < 0:
+                player['x'] = (ship_size/2)
                 player['vx'] = 0
-            elif player['x'] > width:
-                player['x'] = width
+            elif player['x'] + (ship_size/2) > width:
+                player['x'] = width - (ship_size/2)
                 player['vx'] = 0
 
-            if player['y'] < 0:
-                player['y'] = 0
+            if player['y'] - (ship_size/2) < 0:
+                player['y'] = (ship_size/2)
                 player['vy'] = 0
-            elif player['y'] > height:
-                player['y'] = height
+            elif player['y'] + (ship_size/2) > height:
+                player['y'] = height - (ship_size/2)
                 player['vy'] = 0
 
             if player['laser']['active']:
                 # Update laser position
-                from_x = player['x']
-                from_y = player['y']
                 angle_rad = math.radians(player['rotation'] - 90)
+                from_x = player['x'] + (ship_size/2) * math.cos(angle_rad)
+                from_y = player['y'] + (ship_size/2) * math.sin(angle_rad)
                 (to_x, to_y) = get_laser_endpoint(from_x, from_y, angle_rad)
                 player['laser']['from']['x'] = from_x
                 player['laser']['from']['y'] = from_y
