@@ -20,19 +20,31 @@ class ScoreHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        if self.path == '/score/hit':
-            content_length = int(self.headers['Content-Length'])
-            body = self.rfile.read(content_length)
+        content_length = int(self.headers['Content-Length'])
+        body = self.rfile.read(content_length)
+
+        if self.path =='/score/init':
+            try:
+                data = json.loads(body)
+                pid = data.get('player_id')
+                if pid not in scores:
+                    scores[pid] = 0
+                    print('score initialized')
+                self._set_headers()
+                self.wfile.write(json.dumps({'player_id': pid, 'score': 0}).encode())
+            except:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': str(e)}).encode())
+
+        elif self.path == '/score/hit':
             try:
                 data = json.loads(body)
                 pid = data.get('player_id')
                 if pid is None:
                     raise ValueError("Missing 'player_id'")
-
                 scores[pid] = scores.get(pid, 0) + 1
                 self._set_headers()
                 self.wfile.write(json.dumps({'player_id': pid, 'score': scores[pid]}).encode())
-
             except Exception as e:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({'error': str(e)}).encode())

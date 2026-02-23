@@ -25,7 +25,7 @@ async def handler(websocket):
                 })
                 
                 # Broadcast to all connected clients
-                await asyncio.gather(*[client.send(broadcast_msg) for client in connected if client != websocket])
+                await asyncio.gather(*[client.send(broadcast_msg) for client in connected])
                 
     except websockets.exceptions.ConnectionClosedOK:
         print(f"Client disconnected normally: {websocket.remote_address}")

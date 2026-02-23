@@ -2,6 +2,7 @@
 // Game variables
 let ship_size = null;
 let myPlayerID = null;
+let myScreenName = null;
 let gameState = {
     players: {}
 };
@@ -38,6 +39,10 @@ function connect() {
 
     websocket.onopen = function() {
         console.log('Connected to game server');
+        websocket.send(JSON.stringify({
+            type: 'init',
+            screen_name: sessionStorage.getItem('screen_name')
+        }))
     }
 
     websocket.onmessage = function(event) {
@@ -50,6 +55,7 @@ function handleMessage(message) {
     switch (message.type) {
         case 'setup':
             myPlayerID = message.player_id;
+            myScreenName = message.screen_name;
             ship_size =  message.ship_size;
             gameState.players = message.players;
             console.log('Received setup message');
@@ -131,8 +137,10 @@ function updateScoreboard(scores) {
 
     let playerScoresHtml = [];
     for (let playerID in scores) {
+        const player = gameState.players[playerID];
+        const name = player.screen_name;
         // Wrap each player's score in a span with a class
-        playerScoresHtml.push(`<span class="player-score">Player ${playerID} Score: ${scores[playerID]}</span>`);
+        playerScoresHtml.push(`<span class="player-score">${name}: ${scores[playerID]}</span>`);
     }
     // Join them without additional separators, as flexbox will handle spacing
     html += playerScoresHtml.join('');
@@ -225,15 +233,16 @@ function sendChatMessage(text) {
 function renderChat() {
     const chatbox = document.getElementById('chatbox');
     chatbox.innerHTML = chatMessages.map(msg => {
-        const time = new Date(msg.timestamp * 1000).toLocaleTimeString();
-        return `<div><strong>Player ${msg.player_id}:</strong> ${msg.message} <em>(${time})</em></div>`;
+        const player = gameState.players[msg.player_id];
+        const name = player.screen_name;
+        return `<div><strong>${name}:</strong> ${msg.message}</div>`;
     }).join('');
 }
 
 
 // This is the entry point.  It runs when the webpage finishes loading
 window.addEventListener('load', async function() {
-    //fetchScores(); // Show scores before connecting to game server
+    fetchScores(); // Show scores before connecting to game server
 
     // Force it to load images before connecting to game server
     [mySpaceshipImage, otherSpaceshipImage] = await Promise.all([

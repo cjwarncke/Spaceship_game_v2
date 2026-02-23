@@ -37,10 +37,13 @@ async def player_connection(websocket):
         await websocket.close()
         print('Rejected a player connection')
         return
+    
+    init_data = json.loads(await websocket.recv())
+    screen_name = init_data.get('screen_name','Unknown')
     global current_id
     player_id = current_id
     current_id += 1
-    print('Player ' + str(player_id) + ' connected')
+    print(screen_name + ' connected')
 
     #Add player to connected players
     connected_players[player_id] = websocket
@@ -48,6 +51,7 @@ async def player_connection(websocket):
     setup_message = {
         'type': 'setup',
         'player_id': player_id,
+        'screen_name': screen_name,
         'ship_size': ship_size,
         'players' : 1, # temporary. will need to send message with all player ids
     }
@@ -55,9 +59,13 @@ async def player_connection(websocket):
     # Send setup message to browser
     await websocket.send(json.dumps(setup_message))
 
+    # Initialize player score
+    asyncio.create_task(init_player_score(player_id))
+
     # Add player to the game
     x, y = spawn_points[player_id -1]
     game_state['players'][player_id] = {
+        'screen_name': screen_name,
         'x':x, 
         'y':y, 
         'vx':0, # starting velocity
@@ -155,6 +163,16 @@ def laser_hit(laser_from, laser_to, ship_x, ship_y):
     # No intersection
     else:
         return False
+    
+async def init_player_score(player_id):
+    async with aiohttp.ClientSession() as session:
+        try:
+            await session.post(
+                'http://localhost:8767/score/init',
+                json={'player_id': player_id}
+            )
+        except:
+            print('Score initialization failed')
     
 async def send_score_update(player_id):
     async with aiohttp.ClientSession() as session:
