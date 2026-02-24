@@ -1,4 +1,3 @@
-
 // Game variables
 let ship_size = null;
 let myPlayerID = null;
@@ -65,6 +64,11 @@ function handleMessage(message) {
         case 'game_update':
             gameState.players = message.players;
             renderGame();
+            break;
+
+        case 'game_over':
+            alert(`${message.winner_name} wins!`);
+            window.location.href = 'index.html';
             break;
     }
 }

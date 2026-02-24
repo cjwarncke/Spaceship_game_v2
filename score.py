@@ -49,6 +49,11 @@ class ScoreHandler(BaseHTTPRequestHandler):
                 self._set_headers(400)
                 self.wfile.write(json.dumps({'error': str(e)}).encode())
 
+        elif self.path == '/score/reset':
+            scores.clear()
+            self._set_headers()
+            self.wfile.write(json.dumps({'status': 'ok'}).encode())
+
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Not found'}).encode())

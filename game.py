@@ -10,6 +10,7 @@ width = 800
 height = 500
 thrust_power = 0.3
 ship_size = 50
+score_to_win = 10
 
 spawn_points = [
     (100, 250),
@@ -177,12 +178,31 @@ async def init_player_score(player_id):
 async def send_score_update(player_id):
     async with aiohttp.ClientSession() as session:
         try:
-            await session.post(
+            response = await session.post(
                 'http://localhost:8767/score/hit',
                 json={'player_id': player_id}
             )
+            data = await response.json()
+            if data['score'] >= score_to_win:
+                await broadcast_game_over(player_id)
         except:
             print('Score update failed')
+
+async def broadcast_game_over(winner_id):
+    winner = game_state['players'][winner_id]
+    message = json.dumps({
+        'type': 'game_over',
+        'winner_name': winner['screen_name']
+    })
+    for websocket in connected_players.values():
+        await websocket.send(message)
+
+    # Reset scores
+    async with aiohttp.ClientSession() as session:
+        try:
+            await session.post('http://localhost:8767/score/reset')
+        except:
+            print('Score reset failed')
 
 
 async def game_loop():
