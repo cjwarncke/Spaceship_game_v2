@@ -103,8 +103,27 @@ async def player_connection(websocket):
     await websocket.send(json.dumps(game_state_message))
 
     # Listen for messages from this player
-    async for message in websocket:
-        await handle_player_message(player_id, message)
+    try:
+        async for message in websocket:
+            await handle_player_message(player_id, message)
+
+    except websockets.exceptions.ConnectionClosed:
+        print(f'Player {player_id} disconnected')
+
+    finally:
+        # Handle Disconnection
+        screen_name = game_state['players'][player_id]['screen_name']
+        del game_state['players'][player_id]
+        del connected_players[player_id]
+        await broadcast_game_state()
+        
+        # Send message to remaining players
+        message = json.dumps({
+            'type': 'player_disconnected',
+            'player_name': screen_name
+        })
+        for websocket in connected_players.values():
+            await websocket.send(message)
 
 # Process messages from browser
 async def handle_player_message(player_id, message):

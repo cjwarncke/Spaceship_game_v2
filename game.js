@@ -66,6 +66,11 @@ function handleMessage(message) {
             renderGame();
             break;
 
+        case 'player_disconnected':
+            alert(`${message.player_name} disconnected. Returning to menu.`);
+            window.location.href = 'index.html';
+            break;
+
         case 'game_over':
             alert(`${message.winner_name} wins!`);
             window.location.href = 'index.html';
