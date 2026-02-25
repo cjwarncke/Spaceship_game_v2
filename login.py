@@ -49,6 +49,10 @@ class LoginHandler(BaseHTTPRequestHandler):
                 'player_id': player_id,
                 'screen_name': screen_name
             })
+            
+        elif self.path == '/login/reset':
+            players.clear()
+            self._send_json(200, {'status':'ok'})
 
         else:
             self.send_response(404)

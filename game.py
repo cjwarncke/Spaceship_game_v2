@@ -125,6 +125,8 @@ async def player_connection(websocket):
         for websocket in connected_players.values():
             await websocket.send(message)
 
+        await reset_game()
+
 # Process messages from browser
 async def handle_player_message(player_id, message):
     data = json.loads(message)
@@ -216,12 +218,21 @@ async def broadcast_game_over(winner_id):
     for websocket in connected_players.values():
         await websocket.send(message)
 
+    await reset_game()
+
+async def reset_game():
+    global current_id
+    current_id = 1
+    game_state['players'].clear()
+    connected_players.clear()
+    
     # Reset scores
     async with aiohttp.ClientSession() as session:
         try:
             await session.post('http://localhost:8767/score/reset')
+            await session.post('http://localhost:8766/login/reset')
         except:
-            print('Score reset failed')
+            print('Reset failed')
 
 
 async def game_loop():
