@@ -77,6 +77,10 @@ class ScoreHandler(BaseHTTPRequestHandler):
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Not found'}).encode())
+    
+    # Supress logging to terminal
+    def log_message(self, format, *args):
+        pass
 
 def run():
     server_address = ('localhost', 8767)
