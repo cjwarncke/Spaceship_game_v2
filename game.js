@@ -2,6 +2,7 @@
 let ship_size = null;
 let myPlayerID = null;
 let myScreenName = null;
+let gameStartTime = null;
 let gameState = {
     players: {}
 };
@@ -60,6 +61,12 @@ function handleMessage(message) {
             console.log('Received setup message');
             startInputLoop();
             break;
+
+        case 'game_start':
+            gameStartTime = Date.now();
+            gameState.players = message.players;
+            renderGame();
+            break;
         
         case 'game_update':
             gameState.players = message.players;
@@ -93,6 +100,21 @@ function startInputLoop() {
 
 function renderGame() {
     g.clearRect(0,0,canvas.clientWidth,canvas.clientHeight)
+
+    if (Object.keys(gameState.players).length < 2) {
+        g.fillStyle = 'white';
+        g.font = '30px "Lucida Console", Monaco, monospace';
+        g.textAlign = 'center';
+        g.fillText('Waiting for Player 2...', canvas.width / 2, canvas.height / 2);
+    }
+
+    if (gameStartTime && (Date.now() - gameStartTime < 3000)) {
+        const countdown = Math.ceil(3 - (Date.now() - gameStartTime) / 1000)
+        g.fillStyle = 'white';
+        g.font = '60px "Lucida Console", Monaco, monospace';
+        g.textAlign = 'center';
+        g.fillText(countdown, canvas.width / 2, canvas.height / 2);
+    }
 
     // Draw all players and lasers
     for (let playerID in gameState.players) {

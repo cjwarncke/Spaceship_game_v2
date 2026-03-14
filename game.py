@@ -3,6 +3,7 @@ import asyncio
 import aiohttp #used for communication with score microservice
 import json
 import math
+import time
 #adding async before a function definition adds the function to the event loop
 
 #Game area (defined in game.html)
@@ -11,6 +12,7 @@ height = 500
 thrust_power = 0.3
 ship_size = 50
 score_to_win = 10
+max_players = 2
 
 spawn_points = [
     (100, 250),
@@ -26,11 +28,11 @@ game_state = {
     'players': {},
 }
 
+game_start_time = None
 
 # This is called every time a new player connects
 async def player_connection(websocket):
-    #Don't let more than 2 players join the game
-    if len(game_state['players']) >= 2:
+    if len(game_state['players']) >= max_players:
         await websocket.send(json.dumps({
             'type': 'error',
             'message': 'Game is full. Try again later.'
@@ -102,6 +104,25 @@ async def player_connection(websocket):
     # Send starting game state to new player
     await websocket.send(json.dumps(game_state_message))
 
+    # If second player just joined, broadcast game_start to everyone
+    if len(game_state['players']) == 2:
+        global game_start_time
+        game_start_time = time.time()
+
+        # Reset players to spawn points
+        for pid, player in game_state['players'].items():
+            x, y = spawn_points[pid - 1]
+            player['x'] = x
+            player['y'] = y
+            player['vx'] = 0
+            player['vy'] = 0
+            player['rotation'] = 0
+
+        await broadcast_message({
+            'type': 'game_start',
+            'players': game_state['players']
+        })
+
     # Listen for messages from this player
     try:
         async for message in websocket:
@@ -115,7 +136,10 @@ async def player_connection(websocket):
         screen_name = game_state['players'][player_id]['screen_name']
         del game_state['players'][player_id]
         del connected_players[player_id]
-        await broadcast_game_state()
+        await broadcast_message({
+            'type': 'game_update',
+            'players': game_state['players']
+            })
         
         # Send message to remaining players
         message = json.dumps({
@@ -135,19 +159,12 @@ async def handle_player_message(player_id, message):
         player = game_state['players'][player_id]
         player['keys'] = keys
 
-# Send current game state to all players
-async def broadcast_game_state():
-    game_update = {
-        'type': 'game_update',
-        'players': game_state['players']
-    }
-
-    for player_id, websocket in connected_players.items():
+async def broadcast_message(message):
+    for websocket in connected_players.values():
         try:
-            await websocket.send(json.dumps(game_update))
+            await websocket.send(json.dumps(message))
         except:
             break
-            #disconnect player
 
 def get_laser_endpoint(from_x, from_y, angle_rad):
     to_x = from_x
@@ -237,81 +254,88 @@ async def reset_game():
 
 async def game_loop():
     while True:
-        for player_id, player in game_state['players'].items():
-            keys = player['keys']
+        countdown_active = game_start_time and (time.time() - game_start_time < 4)
+        if not countdown_active:
+            for player_id, player in game_state['players'].items():
+                keys = player['keys']
 
-            if keys.get('rotateLeft'):
-                player['rotation'] -= 5
-            if keys.get('rotateRight'):
-                player['rotation'] += 5
-            if keys.get('thrust'):
-                angle_rad = math.radians(player['rotation'] - 90)
-                player['vx'] += math.cos(angle_rad) * thrust_power
-                player['vy'] += math.sin(angle_rad) * thrust_power
-            if keys.get('fireLaser') and not player['laser']['cooldown']:
-                    player['laser']['active'] = True
-                    player['laser']['hitTarget'] = False
-                    player['laser']['duration'] = 3
-                    player['laser']['cooldown'] = 10
+                if keys.get('rotateLeft'):
+                    player['rotation'] -= 5
+                if keys.get('rotateRight'):
+                    player['rotation'] += 5
+                if keys.get('thrust'):
+                    angle_rad = math.radians(player['rotation'] - 90)
+                    player['vx'] += math.cos(angle_rad) * thrust_power
+                    player['vy'] += math.sin(angle_rad) * thrust_power
+                if keys.get('fireLaser') and not player['laser']['cooldown']:
+                        player['laser']['active'] = True
+                        player['laser']['hitTarget'] = False
+                        player['laser']['duration'] = 3
+                        player['laser']['cooldown'] = 10
 
-            # Update position
-            player['x'] += player['vx']
-            player['y'] += player['vy']
+                # Update position
+                player['x'] += player['vx']
+                player['y'] += player['vy']
 
-            # Apply friction
-            player['vx'] *= 0.99
-            player['vy'] *= 0.99
+                # Apply friction
+                player['vx'] *= 0.99
+                player['vy'] *= 0.99
 
-            # Keep within bounds
-            if player['x'] - (ship_size/2) < 0:
-                player['x'] = (ship_size/2)
-                player['vx'] = 0
-            elif player['x'] + (ship_size/2) > width:
-                player['x'] = width - (ship_size/2)
-                player['vx'] = 0
+                # Keep within bounds
+                if player['x'] - (ship_size/2) < 0:
+                    player['x'] = (ship_size/2)
+                    player['vx'] = 0
+                elif player['x'] + (ship_size/2) > width:
+                    player['x'] = width - (ship_size/2)
+                    player['vx'] = 0
 
-            if player['y'] - (ship_size/2) < 0:
-                player['y'] = (ship_size/2)
-                player['vy'] = 0
-            elif player['y'] + (ship_size/2) > height:
-                player['y'] = height - (ship_size/2)
-                player['vy'] = 0
+                if player['y'] - (ship_size/2) < 0:
+                    player['y'] = (ship_size/2)
+                    player['vy'] = 0
+                elif player['y'] + (ship_size/2) > height:
+                    player['y'] = height - (ship_size/2)
+                    player['vy'] = 0
 
-            if player['laser']['active']:
-                # Update laser position
-                angle_rad = math.radians(player['rotation'] - 90)
-                from_x = player['x'] + (ship_size/2) * math.cos(angle_rad)
-                from_y = player['y'] + (ship_size/2) * math.sin(angle_rad)
-                (to_x, to_y) = get_laser_endpoint(from_x, from_y, angle_rad)
-                player['laser']['from']['x'] = from_x
-                player['laser']['from']['y'] = from_y
-                player['laser']['to']['x'] = to_x
-                player['laser']['to']['y'] = to_y
+                if player['laser']['active']:
+                    # Update laser position
+                    angle_rad = math.radians(player['rotation'] - 90)
+                    from_x = player['x'] + (ship_size/2) * math.cos(angle_rad)
+                    from_y = player['y'] + (ship_size/2) * math.sin(angle_rad)
+                    (to_x, to_y) = get_laser_endpoint(from_x, from_y, angle_rad)
+                    player['laser']['from']['x'] = from_x
+                    player['laser']['from']['y'] = from_y
+                    player['laser']['to']['x'] = to_x
+                    player['laser']['to']['y'] = to_y
 
-                # Update laser duration
-                player['laser']['duration'] -= 1
-                if player['laser']['duration'] <= 0:
-                    player['laser']['active'] = False
+                    # Update laser duration
+                    player['laser']['duration'] -= 1
+                    if player['laser']['duration'] <= 0:
+                        player['laser']['active'] = False
 
-                # Check for laser hit
-                if not player['laser']['hitTarget']: # A laser can only hit a target once
-                    for other_player in game_state['players'].values():
-                        if player == other_player:
-                            continue # Don't check if player hits their own laser
-                        else:
-                            if laser_hit(player['laser']['from'], player['laser']['to'], other_player['x'], other_player['y']):
-                                print('Hit detected')
-                                player['laser']['hitTarget'] = True
-                                asyncio.create_task(send_score_update(player_id))
+                    # Check for laser hit
+                    if not player['laser']['hitTarget']: # A laser can only hit a target once
+                        for other_player in game_state['players'].values():
+                            if player == other_player:
+                                continue # Don't check if player hits their own laser
+                            else:
+                                if laser_hit(player['laser']['from'], player['laser']['to'], other_player['x'], other_player['y']):
+                                    print('Hit detected')
+                                    player['laser']['hitTarget'] = True
+                                    asyncio.create_task(send_score_update(player_id))
 
-            # Update laser cooldown timer
-            if player['laser']['cooldown']:
-                player['laser']['cooldown'] -= 1
-                if player['laser']['cooldown'] <= 0:
-                    player['laser']['cooldown'] = False
+                # Update laser cooldown timer
+                if player['laser']['cooldown']:
+                    player['laser']['cooldown'] -= 1
+                    if player['laser']['cooldown'] <= 0:
+                        player['laser']['cooldown'] = False
                 
 
-        await broadcast_game_state()
+        # Send current game state to all players
+        await broadcast_message({
+            'type': 'game_update',
+            'players': game_state['players']
+            })
+        
         await asyncio.sleep(1 / 30)  # 30 FPS
 
 
