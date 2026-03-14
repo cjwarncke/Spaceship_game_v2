@@ -21,7 +21,6 @@ spawn_points = [
 
 #Players
 players = {}
-current_id = 1
 
 connected_players = {}
 game_state = {
@@ -43,9 +42,7 @@ async def player_connection(websocket):
     
     init_data = json.loads(await websocket.recv())
     screen_name = init_data.get('screen_name','Unknown')
-    global current_id
-    player_id = current_id
-    current_id += 1
+    player_id = init_data.get('player_id')
     print(screen_name + ' connected')
 
     #Add player to connected players
@@ -53,7 +50,6 @@ async def player_connection(websocket):
 
     setup_message = {
         'type': 'setup',
-        'player_id': player_id,
         'screen_name': screen_name,
         'ship_size': ship_size,
         'players' : 1, # temporary. will need to send message with all player ids
@@ -66,9 +62,11 @@ async def player_connection(websocket):
     asyncio.create_task(init_player_score(player_id))
 
     # Add player to the game
-    x, y = spawn_points[player_id -1]
+    spawn_index = len(game_state['players'])
+    x, y = spawn_points[spawn_index]
     game_state['players'][player_id] = {
         'screen_name': screen_name,
+        'spawn_index': spawn_index,
         'x':x, 
         'y':y, 
         'vx':0, # starting velocity
@@ -111,7 +109,7 @@ async def player_connection(websocket):
 
         # Reset players to spawn points
         for pid, player in game_state['players'].items():
-            x, y = spawn_points[pid - 1]
+            x, y = spawn_points[player['spawn_index']]
             player['x'] = x
             player['y'] = y
             player['vx'] = 0

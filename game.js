@@ -41,7 +41,8 @@ function connect() {
         console.log('Connected to game server');
         websocket.send(JSON.stringify({
             type: 'init',
-            screen_name: sessionStorage.getItem('screen_name')
+            screen_name: sessionStorage.getItem('screen_name'),
+            player_id: sessionStorage.getItem('player_id')
         }))
     }
 
@@ -54,7 +55,7 @@ function connect() {
 function handleMessage(message) {
     switch (message.type) {
         case 'setup':
-            myPlayerID = message.player_id;
+            myPlayerID = sessionStorage.getItem('player_id')
             myScreenName = message.screen_name;
             ship_size =  message.ship_size;
             gameState.players = message.players;
